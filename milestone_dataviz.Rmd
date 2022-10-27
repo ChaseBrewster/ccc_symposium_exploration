@@ -4,3 +4,256 @@ author: "Chase Brewster"
 date: "2022-10-27"
 output: html_document
 ---Y
+#Clean Currents Coalition reaches 500,000 kilograms of plastic waste collected
+
+#Space to install and load necessary packages
+```{r}
+
+install.packages("tidyverse")
+install.packages("ggplot2")
+install.packages("gganimate")
+install.packages("zoo")
+install.packages("lubridate")
+install.packages("scales")
+install.packages("ggthemes")
+install.packages("gifski")
+install.packages("png")
+install.packages("extrafont")
+install.packages("showtext")
+install.packages("ragg")
+install.packages("magick")
+install.packages("gapminder")
+install.packages("rsvg")
+install.packages("png")
+install.packages("ggimage")
+install.packages("cowplot")
+install.packages("systemfonts")
+
+library(tidyverse)
+library(ggplot2)
+library(gganimate)
+library(zoo)
+library(scales)
+library(ggthemes)
+library(gifski)
+library(png)
+library(extrafont)
+library(showtext)
+library(magick)
+library(gapminder)
+library(rsvg)
+library(png)
+library(ggimage)
+library(cowplot)
+library(systemfonts)
+
+```
+
+
+#Wrangling data into proper format and calculating cumulative plastic
+```{r}
+#read in data
+milestone_data <- read_csv("500k_milestone_data.csv")
+
+#checking things out
+summary(milestone_data)
+class(milestone_data$Month)
+class(milestone_data$Year)
+
+#creating month codes from month names
+milestone_data <- milestone_data %>% 
+  mutate(Month_code = case_when(milestone_data$Month == "January" ~ "01",
+                                milestone_data$Month == "February" ~ "02",
+                                milestone_data$Month == "March" ~ "03",
+                                milestone_data$Month == "April" ~ "04",
+                                milestone_data$Month == "May" ~ "05",
+                                milestone_data$Month == "June" ~ "06",
+                                milestone_data$Month == "July" ~ "07",
+                                milestone_data$Month == "August" ~ "08",
+                                milestone_data$Month == "September" ~ "09",
+                                milestone_data$Month == "October" ~ "10",
+                                milestone_data$Month == "November" ~ "11",
+                                milestone_data$Month == "December" ~"12"))
+
+#creating a date column and using the 1st day of the month to make it a proper date
+milestone_data$Date <- paste(milestone_data$Year, milestone_data$Month_code, "01", sep="-")
+
+#getting rid of extra columns
+milestone_data <- milestone_data %>% 
+  select(Organization, Country, Month, Year, Date, Plastic)
+
+class(milestone_data$Date)
+
+#making Date a date class
+milestone_data$Date <- as.Date(milestone_data$Date)
+
+#putting the data in date order to calculate cumulative plastic totals
+milestone_data <- milestone_data[order(as.Date(milestone_data$Date, format="%Y/%m/%d")),]
+
+#calculating cumulative
+milestone_data$Plastic_c <- cumsum(milestone_data$Plastic)
+
+class(milestone_data$Plastic_c)
+
+#saving data
+write_csv(milestone_data, file = "milestone_data_viz_clean.csv")
+
+#Graphs were going weird because there were multiple data points for the same month. So, calculating sums for each month and then calculating cumulative plastic
+mile_sum <- milestone_data %>%
+  group_by(Date) %>% 
+  summarise(plastic_sum=sum(Plastic))
+
+mile_sum$Plastic_c <- cumsum(mile_sum$plastic_sum)
+
+
+
+
+```
+
+#lets start trying out visualizations
+```{r}
+#start with a line graph
+simple_line <- ggplot(milestone_data, aes(x=Date, y=Plastic_c)) +
+  geom_line()
+
+simple_line
+
+simple_an <- simple_line +
+  transition_reveal(Date) +
+  view_follow()
+
+animate(simple_an, height=365,width=608,fps=30,duration=10,end_pause = 120,res=100,rewind=F)
+
+#shows up step wise, because the data is contributed each month on the "1st"
+
+#use geom_smooth to avoid, because it looks weird
+simple_line_s <- ggplot(milestone_data, aes(x=Date, y=Plastic_c)) +
+  geom_smooth(se=F, method = "gam")
+
+simple_line_s
+
+smooth_an <- simple_line_s +
+  transition_reveal(Date) +
+  view_follow()
+
+animate(smooth_an, height=365,width=608,fps=30,duration=10,end_pause = 120,res=100,rewind=F)
+
+#gganimate did not seem to like geom smooth
+
+#doing a simlple line graph with the updated summary data
+sum_line <- ggplot(mile_sum, aes(x=Date, y=Plastic_c)) +
+  geom_line()
+
+sum_line
+
+sum_an <- sum_line +
+  transition_reveal(Date) +
+  view_follow()
+
+animate(sum_an, height=365,width=608,fps=30,duration=10,end_pause = 120,res=100,rewind=F)
+
+##This looks a lot better. I wonder what smooth looks like
+
+sum_line_s <- ggplot(mile_sum, aes(x=Date, y=Plastic_c)) +
+  geom_smooth(se=F)
+
+sum_line_s
+
+sum_smooth_an <- sum_line_s +
+  transition_reveal(Date) +
+  view_follow()
+
+animate(sum_smooth_an, height=365,width=608,fps=30,duration=10,end_pause = 120,res=100,rewind=F)
+
+#smooth looks a little better but animate still doesn't like it. tried fitting a linear model as a new column to predict what geom smooth does before it does it but that didn't work
+
+```
+
+#moving forward with geom_line, going to build out some preliminary aesthetics
+```{r}
+font_add("Inter", regular = "inter-cufonfonts/Inter-Regular.otf", bold = "inter-cufonfonts/Inter-Bold.otf")
+font.add("Interbold", "Inter-Bold.ttf")
+showtext_auto()
+font_import()
+font_files()
+fonts()
+font_paths()
+logo_white <- grid::rasterGrob(readPNG("CleanCurrentsCoalition_logo_vertical_1c_rev.png"))
+logo_circle <- grid::rasterGrob(readPNG("CleanCurrentsCoalition_logo_circle_3c.png"))
+
+
+getwd()
+
+water_bottle <- rep(c("/Users/brewster/Documents/CCC/Data/ccc_500k_milestone/waterbottle.png"),19)
+
+mile_sum$Image <- water_bottle
+
+mile_sum <- mile_sum %>% 
+  mutate(Caption = case_when(mile_sum$Date == "2020-06-01" ~ "June 2020",
+                             mile_sum$Date == "2020-07-01" ~ "July 2020",
+                             mile_sum$Date == "2020-08-01" ~ "August 2020",
+                             mile_sum$Date == "2020-09-01" ~ "September 2020",
+                             mile_sum$Date == "2020-10-01" ~ "October 2020",
+                             mile_sum$Date == "2020-11-01" ~ "November 2020",
+                             mile_sum$Date == "2020-12-01" ~ "December 2020",
+                             mile_sum$Date == "2021-01-01" ~ "January 2021",
+                             mile_sum$Date == "2021-02-01" ~ "February 2021",
+                             mile_sum$Date == "2021-03-01" ~ "March 2021",
+                             mile_sum$Date == "2021-04-01" ~ "April 2021",
+                             mile_sum$Date == "2021-05-01" ~ "May 2021",
+                             mile_sum$Date == "2021-06-01" ~ "June 2021",
+                             mile_sum$Date == "2021-07-01" ~ "July 2021",
+                             mile_sum$Date == "2021-08-01" ~ "August 2021",
+                             mile_sum$Date == "2021-09-01" ~ "September 2021",
+                             mile_sum$Date == "2021-10-01" ~ "October 2021",
+                             mile_sum$Date == "2021-11-01" ~ "November 2021",
+                             mile_sum$Date == "2021-12-01" ~ "December 2021"))
+
+mile_sum <- mile_sum %>% 
+  mutate(Mile = case_when(mile_sum$Plastic_c < 100000 ~ "Low",
+                          mile_sum$Plastic_c >= 100000 & mile_sum$Plastic_c < 400000 ~ "Mid",
+                          mile_sum$Plastic_c >= 400000 & mile_sum$Plastic_c < 500000 ~ "High",
+                          mile_sum$Plastic_c >= 500000 ~ "Most"))
+
+milestone_viz <- ggplot(mile_sum, aes(x=Date, y=Plastic_c)) +
+  geom_line(color = "#043F67", size = 2) +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "2 month") +
+  scale_y_continuous(breaks = seq(0, 500000, 100000), labels = comma) +
+  theme(axis.text.x = element_text(angle = -45, hjust = -.1, family = "Inter", color ="white", size = 10, face = "bold")) +
+  labs(title = "\n\nGlobal Plastic Captured\n\n",
+       x = "\n\nDate\n\n",
+       y = "\n\nPlastic Weight (kg)\n\n") +
+  theme(axis.title.x = element_text(family ="Inter", face = "bold", color = "white", size = 16)) +
+  theme(axis.title.y = element_text(family = "Inter", face = "bold", color = "white", size = 16)) +
+  annotation_custom(logo_circle, ymin = 180000, ymax = 520000, xmax = as.Date("2021-05-01")) +
+  theme(plot.title = element_text(family = "Inter", face = "bold", color = "white", size = 22, hjust = 0.5)) +
+  theme(plot.background = element_rect(fill = "#0072A6")) +
+  theme(panel.background = element_rect(fill = "White", color = "#043F67")) + 
+  theme(axis.text.y = element_text(color = "white", size = 10, face = "bold")) +
+  theme(plot.margin = unit(c(0,1.2,0,0), "cm")) +
+  theme(panel.grid.minor.y = element_line(color = "#0072A6", size = 0.05),
+        panel.grid.major.y = element_line(color = "#58B9DB", size = 0.3),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  geom_image(aes(image=Image), size = 0.07, by = "height") +
+  scale_size_identity() +
+  geom_text(aes(label = Caption), x = as.Date("2021-10-01"), y = 25000, color = "#043F67", family= "Inter", fontface = "bold", size = 6) +
+  geom_point(size = 0.1, color = "white") +
+  geom_text(aes(label = format(comma(round(Plastic_c, 0)))), color = case_when(mile_sum$Mile == "Low" ~ "#58B9DB", mile_sum$Mile == "Mid" ~ "#0072A6", mile_sum$Mile == "High" ~ "#043F67", mile_sum$Mile == "Most" ~ "Red"), family = "Inter", fontface = "bold", size = case_when(mile_sum$Mile == "Low" ~ 5, mile_sum$Mile == "Mid" ~ 6, mile_sum$Mile == "High" ~ 7, mile_sum$Mile == "Most" ~ 10), hjust = case_when(mile_sum$Mile == "Low" ~ 0.45, mile_sum$Mile == "Mid" ~ -0.2, mile_sum$Mile == "High" ~ 0.4, mile_sum$Mile == "Most" ~ 0.7), vjust = case_when(mile_sum$Mile == "Low" ~ -2, mile_sum$Mile == "Mid" ~ 0.3, mile_sum$Mile == "High" ~ 4.5, mile_sum$Mile == "Most" ~ 5.4)) +
+  expand_limits(x = as.Date("2022-01-01"), y = 540000)
+
+milestone_viz
+
+milestone_viz_animate <- milestone_viz +
+  transition_reveal(Date) +
+  view_follow(fixed_y = T, fixed_x = T) +
+  ease_aes('sine-in-out')
+
+animate_viz <- animate(milestone_viz_animate, fps = 20, duration = 15, start_pause = 30, end_pause = 60, height = 600, width = 650)
+
+animate_viz
+
+anim_save("milestone_viz_final.gif", animate_viz)
+
+```
+
