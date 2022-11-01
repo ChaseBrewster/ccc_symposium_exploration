@@ -9,20 +9,23 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
+#Install and Load Packages
 ```{r}
 install.packages("tidyverse")
 install.packages("ggplot2")
 install.packages("extrafont")
 install.packages("scales")
+install.packages("gganimate")
 
 library(tidyverse)
 library(ggplot2)
 library(extrafont)
 library(scales)
+library(gganimate)
 font_import()
 
-#Not needed so far:
-install.packages("gganimate")
+
 install.packages("zoo")
 install.packages("lubridate")
 install.packages("scales")
@@ -39,8 +42,26 @@ install.packages("png")
 install.packages("ggimage")
 install.packages("cowplot")
 install.packages("systemfonts")
+install.packages("anytime")
+
+library(zoo)
+library(scales)
+library(ggthemes)
+library(gifski)
+library(png)
+library(extrafont)
+library(showtext)
+library(magick)
+library(gapminder)
+library(rsvg)
+library(png)
+library(ggimage)
+library(cowplot)
+library(systemfonts)
+library(anytime)
 ```
 
+#Wrangling data to look at polymer breakdowns
 ```{r}
 ccc_data <- read_csv("CCC_MonthlyDataLog_Responses.csv")
 
@@ -74,6 +95,7 @@ ccc_data <- ccc_data %>%
 write_csv(ccc_data, file = "ccc_data.csv")
 ```
 
+#Stacked bar graph to show the percentage breakdown of each polymer type by country
 ```{r}
 #polymer by country visualization
 
@@ -172,5 +194,142 @@ polymer_graph <- ggplot(polymer_pivot, aes(fill=Polymer, y = Total, x = Country,
 polymer_graph
 
 ggsave("polymer_graph.png")
+```
+
+#Recreate the animate GIF of cumulative plastic over time
+```{r}
+
+total_plastic_data <- ccc_data %>% 
+  select(F, E, C, D, AA, AB) %>% 
+  mutate(Plastic = ifelse(is.na(AB)| AB == 0, AA, AB))
+
+total_plastic_data <- total_plastic_data %>% 
+  rename(
+    Organization = F,
+    Country = E,
+    Month = C,
+    Year = D,
+    Wet = AA,
+    Dry = AB
+  )
+
+total_plastic_data <- total_plastic_data[2:378,]
+
+
+total_plastic_data <- total_plastic_data %>% 
+  mutate(Month_code = case_when(total_plastic_data$Month == "January" ~ "01",
+                                total_plastic_data$Month == "February" ~ "02",
+                                total_plastic_data$Month == "March" ~ "03",
+                                total_plastic_data$Month == "April" ~ "04",
+                                total_plastic_data$Month == "May" ~ "05",
+                                total_plastic_data$Month == "June" ~ "06",
+                                total_plastic_data$Month == "July" ~ "07",
+                                total_plastic_data$Month == "August" ~ "08",
+                                total_plastic_data$Month == "September" ~ "09",
+                                total_plastic_data$Month == "October" ~ "10",
+                                total_plastic_data$Month == "November" ~ "11",
+                                total_plastic_data$Month == "December" ~"12"))
+
+total_plastic_data$Date <- paste(total_plastic_data$Year, total_plastic_data$Month_code, "01", sep="-")
+
+total_plastic_data <- total_plastic_data %>% 
+  select(Organization, Country, Month, Year, Date, Plastic)
+
+total_plastic_data$Date <- as.Date(total_plastic_data$Date)
+
+total_plastic_data <- total_plastic_data[order(as.Date(total_plastic_data$Date, format="%Y/%m/%d")),]
+
+class(total_plastic_data$Plastic)
+
+total_plastic_data$Plastic <- as.numeric(total_plastic_data$Plastic)
+
+total_plastic_data <- total_plastic_data %>%
+  drop_na(Plastic) %>% 
+  group_by(Date)
+
+plastic_sum <- total_plastic_data %>%
+  group_by(Date) %>% 
+  summarise(plastic_sum=sum(Plastic))
+
+plastic_sum$Plastic_c <- cumsum(plastic_sum$plastic_sum)
+
+sum_line <- ggplot(plastic_sum, aes(x=Date, y=Plastic_c)) +
+  geom_line()
+
+sum_line
+
+sum_an <- sum_line +
+  transition_reveal(Date) +
+  view_follow()
+
+animate(sum_an, height=365,width=608,fps=30,duration=10,end_pause = 120,res=100,rewind=F)
+
+font_add("Inter", regular = "inter-cufonfonts/Inter-Regular.otf", bold = "inter-cufonfonts/Inter-Bold.otf")
+font.add("Interbold", "Inter-Bold.ttf")
+showtext_auto()
+font_import()
+font_files()
+fonts()
+font_paths()
+logo_white <- grid::rasterGrob(readPNG("CleanCurrentsCoalition_logo_vertical_1c_rev.png"))
+logo_circle <- grid::rasterGrob(readPNG("CleanCurrentsCoalition_logo_circle_3c.png"))
+
+
+getwd()
+
+water_bottle <- rep(c("/Users/brewster/Documents/CCC/Data/ccc_500k_milestone/waterbottle.png"),28)
+
+plastic_sum$Image <- water_bottle
+
+class(plastic_sum$Date)
+
+plastic_sum$Date <- as.Date(plastic_sum$Date)
+
+is.recursive(plastic_sum)
+
+plastic_sum <- plastic_sum %>% 
+  mutate(Caption = format(anytime(plastic_sum), format = "%b %Y"))
+
+plastic_sum$Caption <- c("June 2020", "July 2020", "August 2020", "September 2020", "October 2020","November 2020", "December 2020", "January 2021", "February 2021", "March 2021", "April 2021", "May 2021", "June 2021", "July 2021", "August 2021", "September 2021", "October 2021", "November 2021", "December 2021", "January 2022", "February 2022", "March 2022", "April 2022", "May 2022", "June 2022", "July 2022", "August 2022", "September 2022")
+
+plastic_viz <- ggplot(plastic_sum, aes(x=Date, y=Plastic_c)) +
+  geom_line(color = "#043F67", size = 2) +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "2 month") +
+  scale_y_continuous(breaks = seq(0, 900000, 100000), labels = comma) +
+  theme(axis.text.x = element_text(angle = -45, hjust = -.1, family = "Inter", color ="white", size = 10, face = "bold")) +
+  labs(title = "\n\nGlobal Plastic Captured\n\n",
+       x = "\n\nDate\n\n",
+       y = "\n\nPlastic Weight (kg)\n\n") +
+  theme(axis.title.x = element_text(family ="Inter", face = "bold", color = "white", size = 16)) +
+  theme(axis.title.y = element_text(family = "Inter", face = "bold", color = "white", size = 16)) +
+  annotation_custom(logo_circle, ymin = 180000, ymax = 520000, xmax = as.Date("2021-05-01")) +
+  theme(plot.title = element_text(family = "Inter", face = "bold", color = "white", size = 22, hjust = 0.5)) +
+  theme(plot.background = element_rect(fill = "#0072A6")) +
+  theme(panel.background = element_rect(fill = "White", color = "#043F67")) + 
+  theme(axis.text.y = element_text(color = "white", size = 10, face = "bold")) +
+  theme(plot.margin = unit(c(0,1.2,0,0), "cm")) +
+  theme(panel.grid.minor.y = element_line(color = "#0072A6", size = 0.05),
+        panel.grid.major.y = element_line(color = "#58B9DB", size = 0.3),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  geom_image(aes(image=Image), size = 0.07, by = "height") +
+  scale_size_identity() +
+  geom_text(aes(label = Caption), x = as.Date("2021-10-01"), y = 25000, color = "#043F67", family= "Inter", fontface = "bold", size = 6) +
+  geom_point(size = 0.1, color = "white") +
+  #geom_text(aes(label = format(comma(round(Plastic_c, 0)))), color = case_when(mile_sum$Mile == "Low" ~ "#58B9DB", mile_sum$Mile == "Mid" ~ "#0072A6", mile_sum$Mile == "High" ~ "#043F67", mile_sum$Mile == "Most" ~ "Red"), family = "Inter", fontface = "bold", size = case_when(mile_sum$Mile == "Low" ~ 5, mile_sum$Mile == "Mid" ~ 6, mile_sum$Mile == "High" ~ 7, mile_sum$Mile == "Most" ~ 10), hjust = case_when(mile_sum$Mile == "Low" ~ 0.45, mile_sum$Mile == "Mid" ~ -0.2, mile_sum$Mile == "High" ~ 0.4, mile_sum$Mile == "Most" ~ 0.7), vjust = case_when(mile_sum$Mile == "Low" ~ -2, mile_sum$Mile == "Mid" ~ 0.3, mile_sum$Mile == "High" ~ 4.5, mile_sum$Mile == "Most" ~ 5.4)) +
+  expand_limits(x = as.Date("2022-10-01"), y = 900000)
+
+plastic_viz
+
+plastic_viz_animate <- plastic_viz +
+  transition_reveal(Date) +
+  view_follow(fixed_y = T, fixed_x = T) +
+  ease_aes('sine-in-out')
+
+animate_viz <- animate(plastic_viz_animate, fps = 20, duration = 15, start_pause = 30, end_pause = 60, height = 600, width = 650)
+
+animate_viz
+
+anim_save("plastic_viz_draft.gif", animate_viz)
 ```
 
