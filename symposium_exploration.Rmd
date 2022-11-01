@@ -144,11 +144,11 @@ polymer_graph <- ggplot(polymer_pivot, aes(fill=Polymer, y = Total, x = Country,
   geom_bar(position = "fill", stat = "identity", color = 'black', size = 0.2) +
   theme_classic() +
   scale_fill_manual(values=cbPalette) +
-  ggtitle("Polymer Type (%) by Country") +
-  xlab("Country") +
-  ylab("% of Plastic Collected (by weight)") +
+  ggtitle("Polymer Type (%) by Country\n") +
+  xlab("\nCountry") +
+  ylab("% of Plastic Collected (by weight)\n") +
   theme(plot.title = element_text(hjust = 0.5)) +
-  scale_y_continuous(labels = percent) +
+  scale_y_continuous(labels = percent, expand = c(0,0)) +
   annotate("text", label = "38.6%", x = 2, y = .19, color = 'white', size = 3, fontface = 'bold') +
   annotate("text", label = "39.4%", x = 4, y = .20, color = 'white', size = 3, fontface = 'bold') +
   annotate("text", label = "38.3%", x = 1, y = .19, color = 'white', size = 3, fontface = 'bold') +
