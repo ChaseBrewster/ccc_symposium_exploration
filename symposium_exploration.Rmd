@@ -165,7 +165,7 @@ polymer_pivot$Country <- factor(polymer_pivot$Country, levels = c("Kenya", "Ecua
 polymer_graph <- ggplot(polymer_pivot, aes(fill=Polymer, y = Total, x = Country, group = Total)) +
   geom_bar(position = "fill", stat = "identity", color = 'black', size = 0.2) +
   theme_classic() +
-  scale_fill_manual(values=cbPalette) +
+  scale_fill_manual(values=cbPalette_two) +
   ggtitle("Polymer Type (%) by Country\n") +
   xlab("\nCountry") +
   ylab("% of Plastic Collected (by weight)\n") +
@@ -194,6 +194,50 @@ polymer_graph <- ggplot(polymer_pivot, aes(fill=Polymer, y = Total, x = Country,
 polymer_graph
 
 ggsave("polymer_graph.png")
+
+class(polymer_pivot$Polymer)
+
+polymer_pivot$Polymer <- as.factor(polymer_pivot$Polymer)
+
+polymer_pivot$Polymer <- factor(polymer_pivot$Polymer, levels = c("Nylon", "Teflon","PVC", "LDPE", "PS", "PP","HDPE","PET"))
+
+cbPalette_two <- c("#CC79A7", "#F0E442", "#D55E00", "#E69F00", "#0072B2", "#999999", "#56B4E9", "#009E73")
+
+polymer_graph_alt <- ggplot(polymer_pivot, aes(fill = Polymer, y = Total, x = Country, group = Polymer)) +
+  geom_bar(position = "fill", stat = "identity", color = 'black', size = 0.2) +
+  theme_classic() +
+  scale_fill_manual(values=cbPalette_two) +
+  ggtitle("Polymer Type (%) by Country\n") +
+  xlab("\nCountry") +
+  ylab("% of Plastic Collected (by weight)\n") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_y_continuous(labels = percent, expand = c(0,0)) +
+  guides(fill=guide_legend(title="Polymer")) +
+  annotate("text", label = "20.5%", x = 2, y = .11, color = 'white', size = 3, fontface = 'bold') +
+  annotate("text", label = "33.0%", x = 4, y = .19, color = 'white', size = 3, fontface = 'bold') +
+  annotate("text", label = "38.3%", x = 1, y = .19, color = 'white', size = 3, fontface = 'bold') +
+  annotate("text", label = "65.9%", x = 3, y = .33, color = 'white', size = 3, fontface = 'bold') +
+  annotate("text", label = "33.8%", x = 5, y = .16, color = 'white', size = 3, fontface = 'bold') +
+  annotate("text", label = "12.5%", x = 6, y = .065, color = 'white', size = 3, fontface = 'bold') +
+  annotate("text", label = "38.6%", x = 2, y = .39, color = 'white', size = 3, fontface = 'bold') +
+  annotate("text", label = "39.4%", x = 4, y = .55, color = 'white', size = 3, fontface = 'bold') +
+  annotate("text", label = "21.0%", x = 1, y = .49, color = 'white', size = 3, fontface = 'bold') +
+  annotate("text", label = "31.0%", x = 3, y = .80, color = 'white', size = 3, fontface = 'bold') +
+  annotate("text", label = "27.0%", x = 5, y = .48, color = 'white', size = 3, fontface = 'bold') +
+  annotate("text", label = "15.8%", x = 6, y = .30, color = 'white', size = 3, fontface = 'bold') +
+  annotate("text", label = "15.3%", x = 2, y = .71, color = 'white', size = 3, fontface = 'bold') +
+  annotate("text", label = "25.3%", x = 4, y = .86, color = 'white', size = 3, fontface = 'bold') +
+  annotate("text", label = "10.1%", x = 1, y = .645, color = 'white', size = 3, fontface = 'bold') +
+  annotate("text", label = "25.2%", x = 5, y = .73, color = 'white', size = 3, fontface = 'bold') +
+  annotate("text", label = "54.4%", x = 6, y = .65, color = 'white', size = 3, fontface = 'bold') +
+  annotate("text", label = "13.6%", x = 1, y = .81, color = 'white', size = 3, fontface = 'bold') +
+  annotate("text", label = "22.0%", x = 2, y = .89, color = 'white', size = 3, fontface = 'bold')
+
+polymer_graph_alt
+
+showtext_auto(enable = FALSE)
+
+ggsave("polymer_graph_alt.png")
 ```
 
 #Recreate the animate GIF of cumulative plastic over time
@@ -264,7 +308,6 @@ sum_an <- sum_line +
 
 animate(sum_an, height=365,width=608,fps=30,duration=10,end_pause = 120,res=100,rewind=F)
 
-font_add("Inter", regular = "inter-cufonfonts/Inter-Regular.otf", bold = "inter-cufonfonts/Inter-Bold.otf")
 font.add("Interbold", "Inter-Bold.ttf")
 showtext_auto()
 font_import()
@@ -290,7 +333,24 @@ is.recursive(plastic_sum)
 plastic_sum <- plastic_sum %>% 
   mutate(Caption = format(anytime(plastic_sum), format = "%b %Y"))
 
+class(plastic_sum$Plastic_c)
+
 plastic_sum$Caption <- c("June 2020", "July 2020", "August 2020", "September 2020", "October 2020","November 2020", "December 2020", "January 2021", "February 2021", "March 2021", "April 2021", "May 2021", "June 2021", "July 2021", "August 2021", "September 2021", "October 2021", "November 2021", "December 2021", "January 2022", "February 2022", "March 2022", "April 2022", "May 2022", "June 2022", "July 2022", "August 2022", "September 2022")
+
+plastic_sum$Label <- format(comma(round(plastic_sum$Plastic_c,0)))
+
+plastic_sum <- plastic_sum %>% 
+  rename(
+    Labels = Label
+  )
+
+class(plastic_sum$Labels)
+
+plastic_sum$Labels <- as.factor(plastic_sum$Labels)
+
+write_csv(plastic_sum, file = "plastic_sum_animate_data.csv")
+
+summary(plastic_sum)
 
 plastic_viz <- ggplot(plastic_sum, aes(x=Date, y=Plastic_c)) +
   geom_line(color = "#043F67", size = 2) +
@@ -302,7 +362,7 @@ plastic_viz <- ggplot(plastic_sum, aes(x=Date, y=Plastic_c)) +
        y = "\n\nPlastic Weight (kg)\n\n") +
   theme(axis.title.x = element_text(family ="Inter", face = "bold", color = "white", size = 16)) +
   theme(axis.title.y = element_text(family = "Inter", face = "bold", color = "white", size = 16)) +
-  annotation_custom(logo_circle, ymin = 180000, ymax = 520000, xmax = as.Date("2021-05-01")) +
+  annotation_custom(logo_circle, ymin = 450000, ymax = 820000, xmax = as.Date("2021-07-01")) +
   theme(plot.title = element_text(family = "Inter", face = "bold", color = "white", size = 22, hjust = 0.5)) +
   theme(plot.background = element_rect(fill = "#0072A6")) +
   theme(panel.background = element_rect(fill = "White", color = "#043F67")) + 
@@ -314,9 +374,9 @@ plastic_viz <- ggplot(plastic_sum, aes(x=Date, y=Plastic_c)) +
         panel.grid.minor.x = element_blank()) +
   geom_image(aes(image=Image), size = 0.07, by = "height") +
   scale_size_identity() +
-  geom_text(aes(label = Caption), x = as.Date("2021-10-01"), y = 25000, color = "#043F67", family= "Inter", fontface = "bold", size = 6) +
+  geom_text(aes(label = Caption), x = as.Date("2022-05-01"), y = 25000, color = "#043F67", family= "Inter", fontface = "bold", size = 6) +
+  geom_text(aes(label = Labels), x = as.Date("2022-05-01"), y = 75000, color = "#58B9DB", family = "Inter", fontface = "bold", size = 5) +
   geom_point(size = 0.1, color = "white") +
-  #geom_text(aes(label = format(comma(round(Plastic_c, 0)))), color = case_when(mile_sum$Mile == "Low" ~ "#58B9DB", mile_sum$Mile == "Mid" ~ "#0072A6", mile_sum$Mile == "High" ~ "#043F67", mile_sum$Mile == "Most" ~ "Red"), family = "Inter", fontface = "bold", size = case_when(mile_sum$Mile == "Low" ~ 5, mile_sum$Mile == "Mid" ~ 6, mile_sum$Mile == "High" ~ 7, mile_sum$Mile == "Most" ~ 10), hjust = case_when(mile_sum$Mile == "Low" ~ 0.45, mile_sum$Mile == "Mid" ~ -0.2, mile_sum$Mile == "High" ~ 0.4, mile_sum$Mile == "Most" ~ 0.7), vjust = case_when(mile_sum$Mile == "Low" ~ -2, mile_sum$Mile == "Mid" ~ 0.3, mile_sum$Mile == "High" ~ 4.5, mile_sum$Mile == "Most" ~ 5.4)) +
   expand_limits(x = as.Date("2022-10-01"), y = 900000)
 
 plastic_viz
@@ -326,10 +386,10 @@ plastic_viz_animate <- plastic_viz +
   view_follow(fixed_y = T, fixed_x = T) +
   ease_aes('sine-in-out')
 
-animate_viz <- animate(plastic_viz_animate, fps = 20, duration = 15, start_pause = 30, end_pause = 60, height = 600, width = 650)
+animate_viz <- animate(plastic_viz_animate, fps = 20, duration = 30, start_pause = 30, end_pause = 60, height = 600, width = 650)
 
 animate_viz
 
-anim_save("plastic_viz_draft.gif", animate_viz)
+anim_save("plastic_viz_final.gif", animate_viz)
 ```
 
